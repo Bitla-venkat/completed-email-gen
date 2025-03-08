@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Email Generator</title>
+</head>
+<body>
+    <h2>Send an AI-Generated Email</h2>
+    <form action="{% url 'send_emails' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <label for="recipient">Recipient Email:</label>
+        <input type="email" name="recipient" id="recipient"><br><br>
+
+        <label for="template">Email Template:</label>
+        <select name="template">
+            <option value="job_application">Job Application</option>
+            <option value="business_proposal">Business Proposal</option>
+            <option value="client_followup">Client Follow-up</option>
+            <option value="product_promotion">Product Promotion</option>
+        </select><br><br>
+
+        <label for="preferences">User Preferences:</label>
+        <input type="text" name="preferences"><br><br>
+
+        <label for="tone">Tone:</label>
+        <select name="tone">
+            <option value="professional">Professional</option>
+            <option value="casual">Casual</option>
+            <option value="excited">Excited</option>
+        </select><br><br>
+
+        <h3>OR Upload CSV for Bulk Emails:</h3>
+        <input type="file" name="csv_file"><br><br>
+
+        <button type="submit">Send Email</button>
+    </form>
+</body>
+</html>

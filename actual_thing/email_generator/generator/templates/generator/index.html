@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+        }
+        textarea, input, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        #emailPreview {
+            border: 1px solid #ccc;
+            padding: 15px;
+            background: #f9f9f9;
+            white-space: pre-line;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            display: none;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            font-weight: bold;
+        }
+        button{
+            color: white;
+            background-color: rgb(10, 60, 224);
+            border-radius: 15px;
+            border-color: rgb(10, 60, 224);
+            border-style: none;
+            margin: 20px;
+        }
+
+        /* Style the radio button container */
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            margin: 14px;
+        }
+
+        /* Hide the default radio button */
+        .radio-label input {
+            display: none;
+        }
+
+        /* Custom radio button */
+        .custom-radio {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #007bff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        /* Inner dot when selected */
+        .custom-radio::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            background-color: #007bff;
+            border-radius: 50%;
+            transform: scale(0);
+            transition: all 0.3s;
+        }
+
+        /* Show inner dot when radio is checked */
+        input:checked + .custom-radio::before {
+            transform: scale(1);
+        }
+
+    </style>
+</head>
+<body>
+    <h2>AI Email Generator</h2>
+    <form id="modeSelectionForm">
+        <label>Do you want to send a single email or bulk emails?</label>
+        
+        <label class="radio-label">
+            <input type="radio" name="emailMode" value="single" checked>
+            <div class="custom-radio"></div>
+            Single Email
+        </label>
+        
+        <label class="radio-label">
+            <input type="radio" name="emailMode" value="bulk">
+            <div class="custom-radio"></div>
+            Bulk Emails
+        </label>
+    
+        <button type="submit">Next</button>
+    </form>
+    
+    <form id="emailForm" style="display: none;">
+        <h3>Select an Email Template:</h3>
+        <div id="templateOptions">
+            <!-- Templates will be added here dynamically -->
+        </div>
+        <label for="customDetails">Enter additional details:</label>
+        <textarea id="customDetails" placeholder="Enter specifics like name, job title, or custom message..."></textarea>
+        <button type="submit">Generate Email</button>
+        <p class="loading" id="loadingText">Generating email...</p>
+    </form>
+    
+    <div id="emailPreview"></div>
+    <div id="sendEmailSection" style="display: none;">
+        <h3>Send Email</h3>
+        <label for="recipientEmail">Recipient Email:</label>
+        <input type="email" id="recipientEmail" placeholder="Enter recipient email" required>
+        <button id="sendEmailBtn">Send Email</button>
+        <p class="loading" id="sendingText">Sending email...</p>
+    </div>
+
+    <div id="bulkEmailSection" style="display: none;">
+        <h3>Send Bulk Emails</h3>
+        <label for="csvFile">Upload CSV File:</label>
+        <input type="file" id="csvFile" accept=".csv">
+        <label for="bulkTemplate">Select a default template for bulk emails:</label>
+        <select id="bulkTemplate"></select>
+        <button id="sendBulkEmailBtn">Send Bulk Emails</button>
+        <p class="loading" id="bulkSendingText">Sending bulk emails...</p>
+    </div>
+
+    <script>
+        document.getElementById("modeSelectionForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const mode = document.querySelector("input[name='emailMode']:checked").value;
+            document.getElementById("modeSelectionForm").style.display = "none";
+            document.getElementById("emailForm").style.display = "block";
+            if (mode === "single") {
+                document.getElementById("sendEmailSection").style.display = "block";
+            } else {
+                document.getElementById("bulkEmailSection").style.display = "block";
+            }
+        });
+    
+        document.addEventListener("DOMContentLoaded", function () {
+    fetch("/generator/templates/")
+        .then(response => response.json())
+        .then(data => {
+            const templateOptionsDiv = document.getElementById("templateOptions");
+            const bulkTemplateSelect = document.getElementById("bulkTemplate");
+
+            templateOptionsDiv.innerHTML = "";
+            bulkTemplateSelect.innerHTML = "";
+
+            Object.keys(data.templates).forEach(templateKey => {
+    // Create radio button for single email selection
+    const label = document.createElement("label");
+    label.classList.add("radio-label");
+    label.innerHTML = `
+        <input type="radio" name="template" value="${templateKey}">
+        <div class="custom-radio"></div>
+        ${data.templates[templateKey]}
+    `;
+    templateOptionsDiv.appendChild(label);
+
+    // Populate the bulk email template dropdown
+    const option = document.createElement("option");
+    option.value = templateKey;
+    option.textContent = data.templates[templateKey];
+    bulkTemplateSelect.appendChild(option);
+});
+        })
+        .catch(error => console.error("Error fetching templates:", error));
+});
+
+
+      document.getElementById("sendEmailBtn").addEventListener("click", function() {
+            const recipientEmail = document.getElementById("recipientEmail").value.trim();
+            const selectedTemplate = document.querySelector("input[name='template']:checked");
+            const customDetails = document.getElementById("customDetails").value.trim();
+    
+            if (!recipientEmail) {
+                alert("Please enter a recipient email.");
+                return;
+            }
+            if (!selectedTemplate) {
+                alert("Please select an email template.");
+                return;
+            }
+    
+            document.getElementById("sendingText").style.display = "block";  // Show loading text
+    
+            const requestData = {
+                recipient: recipientEmail,
+                template: selectedTemplate.value,
+                custom_details: customDetails
+            };
+    
+            fetch("/generator/send_email/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("sendingText").style.display = "none";  // Hide loading text
+                if (data.message) {
+                    alert("Email sent successfully!");
+                } else {
+                    alert("Error: " + data.error);
+                }
+            })
+            .catch(() => {
+                document.getElementById("sendingText").style.display = "none";  // Hide loading text
+                alert("Failed to send the email.");
+            });
+        });
+    
+        document.getElementById("sendBulkEmailBtn").addEventListener("click", function () {
+    const csvFile = document.getElementById("csvFile").files[0];
+    const bulkTemplate = document.getElementById("bulkTemplate").value;
+    const bulkCustomDetails = document.getElementById("customDetails").value.trim(); // Ensure UI custom details are passed
+
+    if (!csvFile) {
+        alert("Please upload a CSV file.");
+        return;
+    }
+
+    console.log("Bulk Template:", bulkTemplate);  // Debugging
+
+    document.getElementById("bulkSendingText").style.display = "block"; // Show loading
+
+    const formData = new FormData();
+    formData.append("csv_file", csvFile);
+    formData.append("template", bulkTemplate);
+    formData.append("custom_details", bulkCustomDetails);  // Ensure custom details are included
+
+    fetch("/generator/send_bulk_email/", {
+        method: "POST",
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById("bulkSendingText").style.display = "none";
+        if (data.message) {
+            alert("Bulk emails sent successfully.");
+        } else {
+            alert("Error: " + data.error);
+        }
+    })
+    .catch(() => {
+        document.getElementById("bulkSendingText").style.display = "none";
+        alert("Failed to send bulk emails.");
+    });
+});
+</script>
+</body>
+</html>
